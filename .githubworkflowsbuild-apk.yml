@@ -1,0 +1,46 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Install Qt
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qt5-default qtquickcontrols2-5-dev qtdeclarative5-dev
+        sudo apt-get install -y qml-module-qtquick2 qml-module-qtquick-controls2
+    
+    - name: Install Android SDK
+      run: |
+        sudo apt-get install -y wget unzip
+        # Download Android SDK command line tools
+        wget https://dl.google.com/android/repository/commandlinetools-linux-7584222_latest.zip
+        mkdir -p $HOME/android-sdk/cmdline-tools
+        unzip commandlinetools-linux-7584222_latest.zip -d $HOME/android-sdk/cmdline-tools
+        mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
+        export ANDROID_SDK_ROOT=$HOME/android-sdk
+        export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
+        yes | sdkmanager --licenses
+        sdkmanager "platforms;android-29" "build-tools;29.0.3" "ndk;21.3.6528147"
+    
+    - name: Build QML to APK
+      run: |
+        # 使用 qmake 构建简化版
+        mkdir build && cd build
+        qmake ../TaizhouMJ.pro
+        make -j$(nproc)
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: taizhou-mahjong-apk
+        path: build/*.apk
